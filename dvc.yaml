@@ -1,0 +1,41 @@
+# DVC pipeline. Reproduce with `dvc repro`. Each stage's deps/outs let DVC
+# skip work when inputs are unchanged. Data + models are cached by DVC, not git.
+stages:
+  prepare:
+    foreach:
+      - amazon_fine_food
+      - sentiment140
+    do:
+      cmd: python -m nlp_system.data.make_dataset --dataset ${item}
+      deps:
+        - data/raw/${item}.csv
+        - src/nlp_system/data/make_dataset.py
+      outs:
+        - data/processed/${item}
+
+  train:
+    foreach:
+      - amazon_fine_food
+      - sentiment140
+    do:
+      cmd: python -m nlp_system.models.train --dataset ${item}
+      deps:
+        - data/processed/${item}
+        - src/nlp_system/models/train.py
+        - src/nlp_system/features/vectorizers.py
+        - src/nlp_system/pipeline/preprocess.py
+      outs:
+        - models/${item}/model.joblib
+      metrics:
+        - models/${item}/metrics.json:
+            cache: false
+
+  index:
+    cmd: python -m nlp_system.search.build_index --dataset amazon_fine_food
+    deps:
+      - data/processed/amazon_fine_food
+      - models/amazon_fine_food/model.joblib
+      - src/nlp_system/search/build_index.py
+      - src/nlp_system/search/engine.py
+    outs:
+      - models/search_index_amazon_fine_food.pkl

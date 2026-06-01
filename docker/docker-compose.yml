@@ -1,0 +1,28 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: nlp-intelligence-system:latest
+    container_name: nlp-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../models:/app/models:ro
+    environment:
+      - MODELS_DIR=/app/models
+    restart: unless-stopped
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.12.1
+    container_name: nlp-mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../mlflow.db:/mlflow/mlflow.db
+      - ../mlartifacts:/mlflow/mlartifacts
+    working_dir: /mlflow
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/mlartifacts
